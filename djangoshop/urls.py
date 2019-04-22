@@ -17,10 +17,12 @@ from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
+import notifications.urls
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('', include('ecomapp.urls'))
+    path('', include('ecomapp.urls')),
+    path('inbox/notifications/', include(notifications.urls, namespace='notifications'))
 ]
 
 if settings.DEBUG:

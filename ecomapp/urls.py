@@ -14,7 +14,9 @@ from ecomapp.views import (
     make_order_view,
     account_view,
     registration_view,
-    login_view
+    login_view,
+    notify_create,
+    notify_delete
 )
 
 urlpatterns = [
@@ -38,4 +40,6 @@ urlpatterns = [
     path('login/', login_view, name='login'),
     path('logout/', LogoutView.as_view(next_page='base'), name='logout'),
     path('', base_view, name='base'),
+    path('notify_create/', notify_create, name='notify_create'),
+    path('notify_delete/', notify_delete, name='notify_delete')
 ]

@@ -10,7 +10,22 @@
 <p>{% lorem %}</p>
 <hr>
 <p style="font-size: 25px">Цена: <strong>{{ product.price }} руб.</strong></p>
-{% if request.user.is_authenticated %}<a href="#" class="add_to_cart" data-slug="{{ product.slug }}"><button class="btn btn-danger">Добавить в корзину</button></a>{% else %}<p class='text-center'>Заказывать товар могут только авторизированные пользователи. Пожалуйста, <a href="{% url 'login' %}">войдите</a> или <a href="{% url 'registration' %}">зарегистрируйтесь</a></p>{% endif %}
+<p id="subscribed_for_notification"></p>
+{% if not product.available and product in check_for_subscribe %}
+<p>Вы подписались на уведомления о поступлении. Как только товар появится, мы Вам сообщим</p>
+{% endif %}
+{% if not product.available and product not in check_for_subscribe %}
+<div class="user_subscribed">
+<p class="lead">Товар отсутсвует. Если вы хотите получать уведомления о его поступлении, нажмите на кнопку</p>
+<a href="#" class="subscribe" data-slug="{{ product.slug }}"><button class="btn btn-info">Уведомить о поступлении</button></a>
+</div>
+    {% endif %}
+{% if product.available %}
+{% if request.user.is_authenticated %}<a href="#" class="add_to_cart" data-slug="{{ product.slug }}"><button class="btn btn-danger">Добавить в корзину</button></a>
+    {% endif %}
+{% endif %}
+    <br><br>
+{% if not request.user.is_authenticated %}<p class='text-center'>Заказывать товар могут только авторизированные пользователи. Пожалуйста, <a href="{% url 'login' %}">войдите</a> или <a href="{% url 'registration' %}">зарегистрируйтесь</a></p>{% endif %}
 </div>
     <script src='{% static "js/jquery.js" %}'></script>
     <script>
@@ -31,5 +46,24 @@
             })
         })
     })
+    </script>
+    <script>
+        $(document).ready(function () {
+            $('.subscribe').on('click', function () {
+                product_slug = $(this).attr('data-slug')
+                data = {
+                    product_slug: product_slug
+                }
+                $.ajax({
+                    type: "GET",
+                    url: '{% url "notify_create" %}',
+                    data: data,
+                    success: function (data) {
+                        $('#subscribed_for_notification').html(data.created)
+                        $('.user_subscribed').css('display', 'none')
+                    }
+                })
+            })
+        })
     </script>
 {% endblock content %}

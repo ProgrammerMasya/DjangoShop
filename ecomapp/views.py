@@ -1,10 +1,11 @@
 from django.shortcuts import render
 from django.http import HttpResponseRedirect, JsonResponse
 from django.urls import reverse
-from ecomapp.models import Category, Product, CartItem, Cart, Order
+from ecomapp.models import Category, Product, CartItem, Cart, Order, MiddlewareNotification
 from decimal import Decimal
 from ecomapp.forms import OrderForm, RegistrationForm, LoginForm
 from django.contrib.auth import login, authenticate
+from notifications.models import Notification
 
 def base_view(request):
     try:
@@ -40,10 +41,15 @@ def product_view(request, product_slug):
         cart = Cart.objects.get(id=cart_id)
     categories = Category.objects.all()
     product = Product.objects.get(slug=product_slug)
+    check_for_subscribe = [notification.product for notification in MiddlewareNotification.objects.filter(
+        user_name=request.user,
+        product=product
+    )]
     context = {
         'product': product,
         'categories': categories,
-        'cart': cart
+        'cart': cart,
+        'check_for_subscribe': check_for_subscribe
     }
     return render(request, 'product.html', context)
 
@@ -285,3 +291,22 @@ def login_view(request):
         'categories': categories,
     }
     return render(request, 'login.html', context)
+
+
+def notify_create(request):
+    product_slug = request.GET.get('product_slug')
+    new_notification = MiddlewareNotification.objects.create(
+        user_name=request.user,
+        product= Product.objects.get(slug=product_slug)
+    )
+    return JsonResponse({'created': 'Вы подписались на уведомления о поступлении. Как только товар появится, мы Вам сообщим'})
+
+
+def notify_delete(request):
+    slug = request.GET.get('slug')
+    notification_on_delete = Notification.objects.get(
+        recipient=request.user,
+        description=slug
+    )
+    notification_on_delete.delete()
+    return JsonResponse({'ok': 'ok'})

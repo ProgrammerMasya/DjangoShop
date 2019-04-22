@@ -1,11 +1,12 @@
 from django.db import models
-from django.db.models.signals import pre_save
+from django.db.models.signals import pre_save, post_save
 from django.utils.text import slugify
 from django.urls import reverse
 from transliterate import translit
 from decimal import Decimal
 from django.contrib.auth.models import User
 from django.conf import settings
+from notifications.signals import notify
 
 
 class Category(models.Model):
@@ -41,12 +42,6 @@ def image_folder(instance, filename):
     return "{0}/{1}".format(instance.slug, filename)
 
 
-class ProductManager(models.Manager):
-
-    def all(self, *args, **kwargs):
-        return super(ProductManager, self).get_queryset().filter(available=True)
-
-
 class Product(models.Model):
 
     category = models.ForeignKey(Category, on_delete=models.CASCADE)
@@ -57,13 +52,33 @@ class Product(models.Model):
     image = models.ImageField(upload_to=image_folder)
     price = models.DecimalField(max_digits=9, decimal_places=2)
     available = models.BooleanField(default=True)
-    objects = ProductManager()
 
     def __str__(self):
         return self.title
 
     def get_absolute_url(self):
         return reverse('product_detail', kwargs={'product_slug': self.slug})
+
+
+def product_available_notification(sender, instance, *args, **kwargs):
+    if instance.available:
+        await_for_notify = [notification for notification in
+                            MiddlewareNotification.objects.filter(
+                                product=instance
+                            )]
+        for notification in await_for_notify:
+            notify.send(
+                instance,
+                recipient=[notification.user_name],
+                verb='Уважаемый {0}! {1}, который Вы ждете, поступил'.format(
+                    notification.user_name.username,
+                    instance.title),
+                description=instance.slug
+                )
+            notification.delete()
+
+
+post_save.connect(product_available_notification, sender=Product)
 
 
 class CartItem(models.Model):
@@ -141,6 +156,15 @@ class Order(models.Model):
     def __str__(self):
         return "Заказ №{0}".format(str(self.id))
 
+
+class MiddlewareNotification(models.Model):
+
+    user_name = models.ForeignKey(User, on_delete=models.CASCADE)
+    product = models.ForeignKey(Product, on_delete=models.CASCADE)
+    is_notified = models.BooleanField(default=False)
+
+    def __str__(self):
+        return "Нотификация для пользователя {0} о поступлении товара {1}".format(self.user_name.username, self.product.title)
 
 
 
